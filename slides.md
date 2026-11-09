@@ -83,7 +83,7 @@ code {
 
 
 <div class="mt-8 text-lg opacity-70">
-Más alla del tenant_id
+Más allá del tenant_id
 </div>
 
 ---
@@ -98,8 +98,8 @@ layout: two-cols
 <div class="mt-2 text-lg opacity-60">@plusplus</div>
 <div class="mt-6 text-xl leading-relaxed">
   Desarrollador Backend con Python y Ruby<br>
-  12 años en la industrias<br>
-  Se hacer Joins
+  12 años en la industria<br>
+  Se hacer Joins 😄
 </div>
 
 ::right::
@@ -145,7 +145,7 @@ layout: default
 </div>
 
 <div class="mt-12 pg-big text-center">
-Podemos compartir una misma base de código, infrestructura, observabilidad etc...<br>
+Podemos compartir una misma base de código, infraestructura, observabilidad etc...<br>
 <span class="pg-bad">Pero NO podemos compartir datos.</span>
 </div>
 
@@ -182,7 +182,7 @@ Podemos compartir una misma base de código, infrestructura, observabilidad etc.
 
 # Shared tables. 
 
-### Una llave foranea para conocer el owner.
+### Una columna para conocer el owner.
 
 <div class="grid grid-cols-2 gap-8 mt-6">
 
@@ -374,7 +374,7 @@ CREATE TABLE stark.projects (
   name TEXT NOT NULL
 );
 
-CREATE TABLE stark.projects (
+CREATE TABLE wayne.projects (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL
 );
@@ -404,7 +404,7 @@ dentro de las tablas del tenant.
 ---
 
 
-# Commandos
+# Comandos
 
 <div class="grid grid-cols-2 gap-8 mt-7">
 
@@ -519,6 +519,30 @@ public.projects
 
 ---
 
+<div class="pg-kicker">django-tenants</div>
+
+# Un request, un schema
+
+<div class="mt-6 text-center font-mono text-base leading-relaxed">
+acme.example.com<br>
+↓<br>
+Tenant middleware<br>
+↓<br>
+resolve tenant = Acme<br>
+↓<br>
+search_path → acme, public<br>
+↓<br>
+Project.objects.all()<br>
+↓<br>
+acme.projects
+</div>
+
+<div class="mt-6 text-center text-base">
+La librería elige el schema. El query del ORM no cambia.
+</div>
+
+---
+
 <div class="pg-kicker">Enforcement</div>
 
 # Los schemas pueden tener permisos
@@ -571,7 +595,7 @@ TO acme_role;
   <div class="mt-3 text-sm font-bold">Buena idea cuando</div>
   <div class="mt-2 text-sm leading-snug">
     Los tenants comparten database y pool.<br>
-    El schema y los GRANT ya aíslan los datos.<br>
+    La aplicación selecciona el schema correcto y el runtime role tiene privilegios mínimos.<br>
     Quieres un solo set de credentials para el tráfico web.
   </div>
   <div class="mt-auto pt-4 font-bold">Suele ser el default</div>
@@ -647,7 +671,7 @@ Una connection no debería pertenecer de forma permanente a un tenant.
 </div>
 
 <div class="mt-3 pg-big text-center">
-<code>search_path</code> suele ser una mala idea para un Pool
+<code>search_path</code> puede ser peligroso con connections reutilizadas.
 </div>
 
 
