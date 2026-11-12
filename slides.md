@@ -99,6 +99,30 @@ layout: two-cols
 <div class="mt-6 text-xl leading-relaxed">
   Desarrollador Backend con Python y Ruby<br>
   12 años en la industria<br>
+</div>
+
+::right::
+
+<img
+  src="./eduardo.jpg"
+  class="h-full max-h-[420px] w-full rounded-2xl object-cover object-top"
+  alt="Eduardo"
+/>
+
+
+---
+layout: two-cols
+---
+
+<div class="pg-kicker">Sobre mí</div>
+
+# Eduardo Ismael
+
+<div class="mt-6 text-3xl font-extrabold tracking-tight">Senior Software developer</div>
+<div class="mt-2 text-lg opacity-60">@plusplus</div>
+<div class="mt-6 text-xl leading-relaxed">
+  Desarrollador Backend con Python y Ruby<br>
+  12 años en la industria<br>
   Se hacer Joins 😄
 </div>
 
@@ -110,6 +134,7 @@ layout: two-cols
   alt="Eduardo"
 />
 
+
 ---
 layout: center
 class: text-center
@@ -117,6 +142,9 @@ class: text-center
 
 # Un Saas 🪴
 
+<div class="mt-6 text-2xl opacity-80">
+Cada company necesita manejar su propia data
+</div>
 
 ---
 layout: default
@@ -149,6 +177,28 @@ Podemos compartir una misma base de código, infraestructura, observabilidad etc
 <span class="pg-bad">Pero NO podemos compartir datos.</span>
 </div>
 
+
+---
+
+# Es importante distinguir dos conceptos
+
+<div class="grid grid-cols-2 gap-8 mt-10">
+
+<div class="pg-card">
+  <div class="font-bold text-2xl">Multi-tenancy</div>
+  <div class="mt-4 text-xl">
+    Es el requisito de arquitectura.
+  </div>
+</div>
+
+<div class="pg-card">
+  <div class="font-bold text-2xl">Schemas de PostgreSQL</div>
+  <div class="mt-4 text-xl">
+    Son un mecanismo posible para implementar ese requisito.
+  </div>
+</div>
+
+</div>
 
 ---
 
@@ -321,21 +371,23 @@ La database puede hacer cumplir el boundary aunque el query esté incompleto.
 <div class="pg-card flex-1">
   <div class="text-sm pg-muted">Una misma Database con N número de schemas</div>
 
-  <div class="grid grid-cols-4 gap-4 mt-5">
+  <div class="grid grid-cols-5 gap-4 mt-5">
     <div class="pg-soft">
-      <div class="font-bold text-lg">public</div>
+      <div class="font-bold text-lg">Public</div>
       <div class="font-mono text-sm mt-3">tenants<br>domains</div>
       <div class="pg-muted text-sm mt-3">metadata compartida</div>
     </div>
     <div class="pg-soft">
-      <div class="font-bold text-lg">acme</div>
-      <div class="font-mono text-sm mt-3">projects<br>tasks</div>
-      <div class="pg-muted text-sm mt-3">tenant schema</div>
+      <div class="font-bold text-lg">Acme</div>
+      <div class="font-mono text-sm mt-3">projects<br>users<br>artifacts</div>
     </div>
     <div class="pg-soft">
-      <div class="font-bold text-lg">stark</div>
-      <div class="font-mono text-sm mt-3">projects<br>tasks</div>
-      <div class="pg-muted text-sm mt-3">tenant schema</div>
+      <div class="font-bold text-lg">Stark</div>
+      <div class="font-mono text-sm mt-3">projects<br>users<br>artifacts</div>
+    </div>
+    <div class="pg-soft">
+      <div class="font-bold text-lg">Wayne</div>
+      <div class="font-mono text-sm mt-3">projects<br>users<br>artifacts</div>
     </div>
     <div class="pg-soft">
       <div class="font-bold text-lg">...</div>
@@ -385,7 +437,7 @@ CREATE TABLE wayne.projects (
 <div class="pg-card">
 
 Un <b>schema</b> es un namespace dentro de una misma base de datos.
-Agrupa tablas y otros objetos bajo un nombre.
+Agrupa tablas, vistas, funciones y otros objetos bajo un nombre.
 
 <div class="mt-5">
 <code>acme.projects</code> , <code>stark.projects</code>  y <code>wayne.projects</code>
@@ -397,6 +449,42 @@ En este modelo, <code>tenant_id</code> suele ser innecesario
 dentro de las tablas del tenant.
 </div>
 
+</div>
+
+</div>
+
+---
+
+# El mismo nombre, otra relation
+
+<div class="mt-4 text-lg">
+Aunque ambas se llamen <code>users</code>, <code>acme.users</code> y <code>stark.users</code>
+son relations distintas.
+</div>
+
+<div class="grid grid-cols-2 gap-8 mt-6">
+
+<div class="pg-card">
+  <div class="font-bold text-lg">Cada una tiene lo suyo</div>
+  <div class="mt-4 leading-relaxed">
+    Storage físico y rows<br>
+    Indexes y statistics<br>
+    Primary keys y unique constraints<br>
+    Foreign keys<br>
+    Locks a nivel de tabla<br>
+    Autovacuum y estado de mantenimiento
+  </div>
+</div>
+
+<div class="pg-card">
+  <div class="font-bold text-lg">Qué es un schema</div>
+  <div class="mt-4 text-lg leading-relaxed">
+    No es otra database ni un storage engine.
+    Es, ante todo, un <b>namespace</b> y un <b>permission boundary</b>.
+  </div>
+  <div class="mt-5 text-sm pg-muted">
+    PostgreSQL documenta esta distinción.
+  </div>
 </div>
 
 </div>
@@ -495,14 +583,17 @@ live=#
 SET search_path
 TO stark, public;
 
-SELECT *
-FROM projects;
+INSERT INTO projects (name)
+VALUES ('Stark Satellite Uplink');
+
+SELECT * FROM projects;
 
  id |          name          
 ----+------------------------
   1 | Stark Dashboard
   2 | Arc Reactor Monitoring
   3 | Stark Inventory
+  4 | Stark Satellite Uplink
 
 ```
 
@@ -536,17 +627,17 @@ public.projects
 # Un request, un schema
 
 <div class="mt-6 text-center font-mono text-base leading-relaxed">
-acme.example.com<br>
+stark.example.com<br>
 ↓<br>
 Tenant middleware<br>
 ↓<br>
-resolve tenant = Acme<br>
+resolve tenant = stark<br>
 ↓<br>
-search_path → acme, public<br>
+search_path → stark, -public-<br>
 ↓<br>
 Project.objects.all()<br>
 ↓<br>
-acme.projects
+stark.projects
 </div>
 
 <div class="mt-6 text-center text-base">
@@ -598,12 +689,12 @@ TO acme_role;
 
 <div class="pg-kicker">Application roles</div>
 
-# Least privilege por request
+# Least privilege Principel
 
 <div class="mt-8 flex items-center justify-center gap-6">
 
 <div class="pg-card text-center">
-  <div class="font-bold">app_login</div>
+  <div class="font-bold">app_login 🔑</div>
   <div class="mt-3 text-sm">
     PostgreSQL User
   </div>
@@ -653,13 +744,39 @@ El <b>current role</b> limita los privilegios activos durante el request.
 </div>
 
 ---
+
+<div class="pg-kicker">django-tenants</div>
+
+# Un request, un role
+
+<div class="mt-6 text-center font-mono text-base leading-relaxed">
+stark.example.com<br>
+↓<br>
+Tenant middleware<br>
+↓<br>
+resolve tenant = stark<br>
+↓<br>
+SET LOCAL ROLE stark_role<br>
+↓<br>
+search_path → stark, public<br>
+↓<br>
+Project.objects.all()<br>
+↓<br>
+stark.projects
+</div>
+
+<div class="mt-6 text-center text-base">
+El schema rutea. El role limita qué puede tocar este request.
+</div>
+
+---
 layout: two-cols-header
 layoutClass: gap-x-12
 ---
 
 <div class="pg-kicker">Least privilege por request</div>
 
-# Reduciendo el blast radius
+# Reduciendo el scope
 
 ::left::
 
@@ -755,8 +872,6 @@ El request trabaja con privilegios locales.**
 </div>
 
 ---
-
-<div class="pg-kicker">Application roles</div>
 
 # ¿Un DB user por tenant… o un superuser?
 
