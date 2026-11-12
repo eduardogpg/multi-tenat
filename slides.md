@@ -403,8 +403,20 @@ dentro de las tablas del tenant.
 
 ---
 
+# Qué tenemos
 
-# Comandos
+<div class="mt-4 flex items-center justify-center">
+  <img
+    src="./schema.png"
+    class="max-h-[400px] w-auto"
+    alt="Base de datos con los schemas Acme, Stark y Wayne"
+  />
+</div>
+
+---
+
+
+# Comandos y Queries
 
 <div class="grid grid-cols-2 gap-8 mt-7">
 
@@ -586,6 +598,166 @@ TO acme_role;
 
 <div class="pg-kicker">Application roles</div>
 
+# Least privilege por request
+
+<div class="mt-8 flex items-center justify-center gap-6">
+
+<div class="pg-card text-center">
+  <div class="font-bold">app_login</div>
+  <div class="mt-3 text-sm">
+    PostgreSQL User
+  </div>
+</div>
+
+<div class="pg-arrow">→</div>
+
+<div class="grid grid-cols-3 gap-4">
+
+  <div class="pg-card text-center">
+    <div class="font-bold pg-good">acme_role</div>
+    <div class="mt-3 text-sm">
+      acme.*
+    </div>
+  </div>
+
+  <div class="pg-card text-center">
+    <div class="font-bold">stark_role</div>
+    <div class="mt-3 text-sm">
+      stark.*
+    </div>
+  </div>
+
+  <div class="pg-card text-center">
+    <div class="font-bold">wayne_role</div>
+    <div class="mt-3 text-sm">
+      wayne.*
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<div class="mt-10 pg-soft text-center text-xl">
+
+La connection puede servir a muchos tenants,<br>
+pero cada request opera con los permisos de <b>un solo tenant</b>.
+
+</div>
+
+<div class="mt-8 text-center text-lg">
+
+El login tiene la capacidad de asumir varios roles.<br>
+El <b>current role</b> limita los privilegios activos durante el request.
+
+</div>
+
+---
+layout: two-cols-header
+layoutClass: gap-x-12
+---
+
+<div class="pg-kicker">Least privilege por request</div>
+
+# Reduciendo el blast radius
+
+::left::
+
+### Request de Acme ✅
+
+```sql
+BEGIN;
+
+SET LOCAL ROLE acme_role;
+
+SET LOCAL search_path
+TO acme, public;
+
+SELECT *
+FROM projects;
+
+COMMIT;
+```
+
+Durante esta transacción:
+
+```text
+acme.projects   ✅
+stark.projects  ❌
+wayne.projects  ❌
+```
+
+::right::
+
+### Bug accidental ❌
+
+```sql
+SELECT *
+FROM stark.projects;
+```
+
+PostgreSQL responde:
+
+```text
+ERROR: permission denied
+for table projects
+```
+
+Porque el role activo es:
+
+```text
+current_user = acme_role
+```
+
+<div class="mt-4 pg-soft text-sm">
+
+Aunque `app_login` pueda asumir `stark_role` en otro request, **este request** está limitado a los permisos de `acme_role`.
+
+</div>
+
+---
+
+<div class="pg-kicker">Idea clave</div>
+
+# No es aislamiento absoluto
+
+<div class="grid grid-cols-2 gap-8 mt-8">
+
+<div class="pg-card">
+
+### Sí protege contra ✅
+
+- Queries al schema equivocado
+- Accesos accidentales
+- Bugs en queries
+- Un `search_path` incorrecto
+- Mayor blast radius por request
+
+</div>
+
+<div class="pg-card">
+
+### No protege contra ❌
+
+- La app seleccionando el role incorrecto
+- Una app completamente comprometida
+- `app_login` usando otro tenant role intencionalmente
+
+</div>
+
+</div>
+
+<div class="mt-10 text-center text-xl">
+
+**El login tiene capacidad global.  
+El request trabaja con privilegios locales.**
+
+</div>
+
+---
+
+<div class="pg-kicker">Application roles</div>
+
 # ¿Un DB user por tenant… o un superuser?
 
 <div class="grid grid-cols-3 gap-5 mt-5">
@@ -742,7 +914,7 @@ El tenant context pertenece al request o a la transacción.</b>
     <code>shared_buffers</code>
   </div>
   <div class="mt-5">
-    Un reporte o un import de Acme hace esperar a Stark y a Wayne.
+    Un reporte o un import de Acme hace esperar al resto de tenants.
   </div>
 </div>
 
@@ -765,7 +937,7 @@ Schema-per-tenant aísla los datos, no los recursos.
 ---
 
 
-# Las migrations se vuelven un problema de fan-out
+# Las migrations pueden volverse un problema
 
 <div class="grid grid-cols-2 gap-10 mt-8">
 
