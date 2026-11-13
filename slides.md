@@ -335,6 +335,13 @@ USING (
   tenant_id =
   current_setting('app.current_tenant')::BIGINT
 );
+
+SET LOCAL app.current_tenant = '1';
+
+SELECT * FROM projects;
+ id | tenant_id |     name
+----+-----------+--------------
+  1 |         1 | Acme Website
 ```
 
 <div class="grid grid-cols-3 gap-5 mt-8">
@@ -872,47 +879,6 @@ El request trabaja con privilegios locales.**
 </div>
 
 ---
-
-# ¿Un DB user por tenant… o un superuser?
-
-<div class="grid grid-cols-3 gap-5 mt-5">
-
-<div class="pg-card flex h-full flex-col">
-  <div class="font-bold pg-good">Runtime role compartido</div>
-  <div class="mt-3 text-sm font-bold">Buena idea cuando</div>
-  <div class="mt-2 text-sm leading-snug">
-    Los tenants comparten database y pool.<br>
-    La aplicación selecciona el schema correcto y el runtime role tiene privilegios mínimos.<br>
-    Quieres un solo set de credentials para el tráfico web.
-  </div>
-  <div class="mt-auto pt-4 font-bold">Suele ser el default</div>
-</div>
-
-<div class="pg-card flex h-full flex-col">
-  <div class="font-bold">Un role por tenant</div>
-  <div class="mt-3 text-sm font-bold">Buena idea cuando</div>
-  <div class="mt-2 text-sm leading-snug">
-    Compliance o un contrato exigen que el DB niegue el acceso cruzado.<br>
-    Debes revocar un tenant sin tocar a los demás.<br>
-    El número de tenants todavía se puede operar.
-  </div>
-  <div class="mt-auto pt-4 font-bold">Más secrets, pool más difícil</div>
-</div>
-
-<div class="pg-card flex h-full flex-col">
-  <div class="font-bold pg-bad">Superuser</div>
-  <div class="mt-3 text-sm font-bold">Buena idea cuando</div>
-  <div class="mt-2 text-sm leading-snug">
-    Es una sesión humana de administración.<br>
-    No es el role que atiende requests.<br>
-    Las migrations usan otro role, con DDL, no este login.
-  </div>
-  <div class="mt-auto pt-4 font-bold">Nunca para el tráfico web</div>
-</div>
-
-</div>
-
----
 layout: center
 class: text-center
 ---
@@ -1051,6 +1017,107 @@ Schema-per-tenant aísla los datos, no los recursos.
 
 ---
 
+<div class="pg-kicker">Noisy neighbor</div>
+
+# Primero identifica al tenant
+
+<div class="grid grid-cols-3 gap-5 mt-6">
+
+<div class="pg-card">
+  <div class="font-bold">pg_stat_statements</div>
+  <div class="mt-4 text-sm leading-relaxed">
+    Etiqueta el query con
+    <code>application_name</code>
+    o un comentario
+    <code>/* tenant=acme */</code>.
+    El texto agrupado dice qué tenant lo corrió.
+  </div>
+</div>
+
+<div class="pg-card">
+  <div class="font-bold">pg_stat_activity</div>
+  <div class="mt-4 text-sm leading-relaxed">
+    Qué sesión lleva mucho tiempo.<br>
+    Quién sostiene un lock.<br>
+    Quién espera I/O.
+  </div>
+</div>
+
+<div class="pg-card">
+  <div class="font-bold">Vistas del sistema</div>
+  <div class="mt-4 text-sm leading-relaxed">
+    Scans, bloques leídos y tuplas devueltas.
+    En schema-per-tenant, el schema de la vista ya es el tenant.
+  </div>
+</div>
+
+</div>
+
+<div class="mt-8 text-center text-xl">
+Sin una etiqueta, el query ruidoso no tiene tenant.
+</div>
+
+---
+
+<div class="pg-kicker">Noisy neighbor</div>
+
+# Qué puedes hacer
+
+<div class="grid grid-cols-2 gap-8 mt-5">
+
+<div class="pg-card">
+  <div class="font-bold">Timeouts</div>
+  <div class="mt-1 text-sm pg-muted">El circuit breaker más barato</div>
+
+```sql
+ALTER ROLE acme_role SET
+  statement_timeout = '30s';
+
+ALTER ROLE acme_role SET
+  lock_timeout = '5s';
+
+ALTER ROLE acme_role SET
+  idle_in_transaction_session_timeout
+    = '60s';
+```
+
+  <div class="mt-3 text-sm">
+    El default entra al hacer login.
+    Quien pueda ejecutar <code>SET</code> todavía puede alargarlo.
+  </div>
+</div>
+
+<div>
+
+<div class="pg-card">
+  <div class="font-bold">Límite de connections</div>
+
+```sql
+ALTER ROLE acme_role
+  CONNECTION LIMIT 20;
+```
+
+  <div class="mt-3 text-sm">
+    Ese login no puede agotar <code>max_connections</code>.
+    En database-per-tenant, el límite va en la database.
+  </div>
+</div>
+
+<div class="pg-card mt-4">
+  <div class="font-bold">Índices y queries</div>
+  <div class="mt-3 text-sm leading-relaxed">
+    En shared tables, <code>tenant_id</code> va primero en el índice.<br>
+    Un whale puede usar un índice parcial.<br>
+    Evita <code>SELECT *</code> y joins cartesianos.
+  </div>
+</div>
+
+</div>
+
+</div>
+
+---
+
 
 # Las migrations pueden volverse un problema
 
@@ -1151,20 +1218,6 @@ Ahora producción contiene temporalmente <b>varias versiones de schema</b>.
 Un migration runner debe ser <b>restartable</b>, no “todo o nada para siempre”.
 </div>
 
-
-<!--
-TIEMPO: ~3 min
-
-SCRIPT:
-“Expand/contract encaja muy bien en deployments multi-schema.
-
-Primero agrega una columna o tabla backwards-compatible.
-Después migra todos los tenants.
-Solo cuando el fleet está listo cambiamos el comportamiento de la aplicación.
-La estructura vieja se elimina después.
-
-Esto reduce el impacto de fallas parciales en las migrations de tenants.”
--->
 
 ---
 
